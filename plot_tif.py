@@ -5,22 +5,24 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-fname = 'Rome-90m-DEM.tif'
+fname = 'Rome-30m-DEM.tif'
 Z = plt.imread(fname)
 shape = Z.shape
-
 Z = Z[:, :, 0]
 
-x = np.arange(shape[1])
-y = np.arange(shape[0])
-X, Y = np.meshgrid(x, y)
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
 
-ax.plot_surface(X, Y, Z,
-                rstride=1,
-                cstride=1,
-                cmap=cm.viridis)
+# x = np.arange(shape[1])
+# y = np.arange(shape[0])
+# X, Y = np.meshgrid(x, y)
+
+# ax.plot_surface(X, Y, Z,
+#                 rstride=1,
+#                 cstride=1,
+#                 cmap=cm.viridis)
+
+fig, axes = plt.subplots(1, 1)
+axes.imshow(Z)
 
 plt.show()
