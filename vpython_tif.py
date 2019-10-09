@@ -43,7 +43,7 @@ idx = 0
 center = vector(shape[0]/2, shape[1]/2, 0)
 for j in range(D, shape[0]-D, D):
     for k in range(D, shape[1]-D, D):
-        if idx % 1000 == 0:
+        if idx % 10000 == 0:
             print(idx)
 
         vc = vector(j, k, Z[j][k])
@@ -78,11 +78,11 @@ pprint(info)
 
 ################################################
 # Draw ground
-c = vector(0.2, 0.2, 0.2)
-v0 = vertex(pos=vector(0, 0, 0) - center, color=c)
-v1 = vertex(pos=vector(shape[0], 0, 0) - center, color=c)
-v2 = vertex(pos=vector(shape[0], shape[1], 0) - center, color=c)
-v3 = vertex(pos=vector(0, shape[1], 0) - center, color=c)
+color = vector(0.2, 0.2, 0.2)
+v0 = vertex(pos=vector(0, 0, 0) - center, color=color)
+v1 = vertex(pos=vector(shape[0], 0, 0) - center, color=color)
+v2 = vertex(pos=vector(shape[0], shape[1], 0) - center, color=color)
+v3 = vertex(pos=vector(0, shape[1], 0) - center, color=color)
 quad(vs=[v0, v1, v2, v3])
 
 
