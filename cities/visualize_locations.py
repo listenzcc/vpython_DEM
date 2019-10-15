@@ -3,6 +3,7 @@
 
 import json
 import numpy as np
+import tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import Divider, Size
 from mpl_toolkits.axes_grid1.mpl_axes import Axes
@@ -66,31 +67,54 @@ N_MIN = min(e['N_min'] for e in info_states.values()) - padding
 N_MAX = max(e['N_max'] for e in info_states.values()) + padding
 print(E_MIN, E_MAX, N_MIN, N_MAX)
 
-# Compute shortest path in each state
-for state_name in info_states.keys():
-    info = info_states[state_name]
-    dist = cdist(info['pos'], info['pos'])
-    num = len(info['names'])
 
+# Compute shortest path based on pos: positions of nodes
+def compute_path(pos):
+    total = pos.shape[0]
+    dist = cdist(pos, pos)
+    dist += np.diag(np.array([np.inf for _ in range(total)]))
     passed = set()
-    remain = set(range(num))
+    remain = set(range(total))
     path = []
 
+    pbar = tqdm.tqdm(total=total)
+    # Compute shortest path
+    # Use fast iteration method, start from 0th city
     passed.add(0)
     remain.remove(0)
+    pbar.update(1)
     while remain:
-        min_value = 1e10
-        a, b = -1, -1
-        for j in passed:
-            for k in remain:
-                if dist[j][k] < min_value:
-                    min_value = dist[j][k]
-                    a, b = j, k
-        path.append((info['pos'][a], info['pos'][b]))
+        _x, _y = tuple(passed), tuple(remain)
+        _dist = dist[_x, :][:, _y]
+        _a, _b = np.unravel_index(_dist.argmin(), _dist.shape)
+        a, b = _x[_a], _y[_b]
+
+        # formate of eath path [x_from, y_from, x_to, y_to]
+        path.append([pos[a][0], pos[a][1], pos[b][0], pos[b][1]])
+        # Record shortest edge
         passed.add(b)
         remain.remove(b)
+        pbar.update(1)
 
-    info_states[state_name]['path'] = path
+    pbar.close()
+
+    return path
+
+
+# Compute shortest path in each state
+for state_name in info_states.keys():
+    print(state_name, info_states[state_name]['num'])
+    # Compute path within state
+    _path = compute_path(info_states[state_name]['pos'])
+    # Transform path into np array 4 x [num]
+    info_states[state_name]['path'] = np.array(_path).transpose()
+
+# Compute shortest path across country
+# global_pos = np.concatenate([e['pos'] for e in info_states.values()], axis=0)
+# print('Global', global_pos.shape[0])
+# _path = compute_path(global_pos)
+# global_path = np.array(_path).transpose()
+
 
 ####################################################
 # Init size parameters, sizes are in inch.
@@ -117,22 +141,26 @@ ax.set_axes_locator(divider.new_locator(nx=1, ny=1))
 fig.add_axes(ax)
 
 ######################################################
-# Draw cities
+# Draw article
 for state_name, info in info_states.items():
     # print(state_name, len(info['names']))
     color = info['color']
     colors = np.repeat(color, info['num'], axis=0)
+
+    # Draw cities
     x, y = info['pos'][:, 0], info['pos'][:, 1]
     ax.scatter(x, y, s=5, c=colors, label=state_name)
 
-    for p in info['path']:
-        ax.plot([p[0][0], p[1][0]], [p[0][1], p[1][1]], c=tuple(color[0]))
+    # Draw path
+    path = info['path']
+    color[0][-1] = 0.3
+    ax.plot(path[(0, 2), :], path[(1, 3), :], c=tuple(color[0]))
 
+# Draw global_path
+# ax.plot(global_path[(0, 2), :], global_path[(1, 3), :], c='gray', alpha=0.3)
 
+# Draw legend
 ax.legend(loc='best', bbox_to_anchor=(1, 1))
 
-# for p in path:
-#     print(p)
-#     plt.plot([p[0][0], p[1][0]], [p[0][1], p[1][1]])
-
+# Plot on screen
 plt.show()
