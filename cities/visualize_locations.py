@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import Divider, Size
 from mpl_toolkits.axes_grid1.mpl_axes import Axes
 from pprint import pprint
+from scipy.spatial.distance import cdist
 
 # Makesure matplotlib can draw Chinese characters
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -20,55 +21,118 @@ locations['山西省']['万荣'][1] = '37.20'
 
 # pprint(locations)
 
-N_range = [90, 0]
-E_range = [180, 0]
-
+################################################################
+# Get data
 info_states = dict()
+# For each state
 for state_name, cities in locations.items():
     print(state_name)
-    info_states[state_name] = dict(names=[],
-                                   pos=[])
+
+    # Get city name and position
+    name_list = []
+    pos_list = []
     for name, pos_str in cities.items():
-        pos = [float(pos_str[0]), float(pos_str[1])]
-        if pos[0] < E_range[0]:
-            E_range[0] = pos[0]
-        if pos[0] > E_range[1]:
-            E_range[1] = pos[0]
-        if pos[1] < N_range[0]:
-            N_range[0] = pos[1]
-        if pos[1] > N_range[1]:
-            N_range[1] = pos[1]
-        info_states[state_name]['names'].append(name)
-        info_states[state_name]['pos'].append(pos)
+        name_list.append(name)
+        pos_list.append([float(pos_str[0]), float(pos_str[1])])
+    pos_array = np.array(pos_list)
 
-    info_states[state_name]['pos'] = np.array(info_states[state_name]['pos'])
+    # Compute state boundary
+    E_min, E_max = min(pos_array[:, 0]), max(pos_array[:, 0])
+    N_min, N_max = min(pos_array[:, 1]), max(pos_array[:, 1])
 
-pprint(info_states)
+    # Compute number of cities and set random color
+    num = len(name_list)
+    color = np.random.rand(4).reshape(1, 4) * 0.8
+    color[0][-1] = 0.5
+
+    # Record in info
+    info_states[state_name] = dict(names=name_list,
+                                   pos=pos_array,
+                                   num=num,
+                                   color=color,
+                                   E_min=E_min,
+                                   E_max=E_max,
+                                   N_min=N_min,
+                                   N_max=N_max)
+
+# pprint(info_states)
+
+# Compute country boundary
+# Set padding
+padding = 5
+E_MIN = min(e['E_min'] for e in info_states.values()) - padding
+E_MAX = max(e['E_max'] for e in info_states.values()) + padding
+N_MIN = min(e['N_min'] for e in info_states.values()) - padding
+N_MAX = max(e['N_max'] for e in info_states.values()) + padding
+print(E_MIN, E_MAX, N_MIN, N_MAX)
+
+# Compute shortest path in each state
+for state_name in info_states.keys():
+    info = info_states[state_name]
+    dist = cdist(info['pos'], info['pos'])
+    num = len(info['names'])
+
+    passed = set()
+    remain = set(range(num))
+    path = []
+
+    passed.add(0)
+    remain.remove(0)
+    while remain:
+        min_value = 1e10
+        a, b = -1, -1
+        for j in passed:
+            for k in remain:
+                if dist[j][k] < min_value:
+                    min_value = dist[j][k]
+                    a, b = j, k
+        path.append((info['pos'][a], info['pos'][b]))
+        passed.add(b)
+        remain.remove(b)
+
+    info_states[state_name]['path'] = path
 
 ####################################################
-# These code is to make fixed size ax
-fig = plt.figure(figsize=(10, 10))
+# Init size parameters, sizes are in inch.
+width = 10  # Width of article
+# Compute height of article
+height = width / (E_MAX - E_MIN) * (N_MAX - N_MIN)
+# Width extension for legend
+width_ext = 2
+# Padding
+padding = 0.5
+
+# These code is to make fixed size article
+# Init figure
+fig = plt.figure(figsize=(width + 2 * padding + width_ext,
+                          height + 2 * padding))
 # The first items are for padding and the second items are for the axes.
-# sizes are in inch.
-h = [Size.Fixed(0.5), Size.Fixed(9)]
-v = [Size.Fixed(0.5), Size.Fixed(9)]
-divider = Divider(fig, (0.0, 0.0, 1., 1.), h, v, aspect=False)
+# Article width and height
+w = [Size.Fixed(padding), Size.Fixed(width)]
+h = [Size.Fixed(padding), Size.Fixed(height)]
+divider = Divider(fig, (0.0, 0.0, 1., 1.), w, h, aspect=False)
 # the width and height of the rectangle is ignored.
 ax = Axes(fig, divider.get_position())
 ax.set_axes_locator(divider.new_locator(nx=1, ny=1))
 fig.add_axes(ax)
 
+######################################################
+# Draw cities
 for state_name, info in info_states.items():
-    print(state_name, len(info['names']))
-    num = len(info['names'])
+    # print(state_name, len(info['names']))
+    color = info['color']
+    colors = np.repeat(color, info['num'], axis=0)
     x, y = info['pos'][:, 0], info['pos'][:, 1]
-    colors = np.repeat(np.random.rand(3).reshape(1, 3) * 0.8,
-                       num, axis=0)
     ax.scatter(x, y, s=5, c=colors, label=state_name)
+
+    for p in info['path']:
+        ax.plot([p[0][0], p[1][0]], [p[0][1], p[1][1]], c=tuple(color[0]))
+
+
 ax.legend(loc='best', bbox_to_anchor=(1, 1))
 
-padding = 5
-ax.set_ylim(N_range[0]-padding, N_range[0]+E_range[1]-E_range[0]+padding)
-ax.set_xlim(E_range[0]-padding, E_range[0]+E_range[1]-E_range[0]+padding)
+# for p in path:
+#     print(p)
+#     plt.plot([p[0][0], p[1][0]], [p[0][1], p[1][1]])
 
 plt.show()
