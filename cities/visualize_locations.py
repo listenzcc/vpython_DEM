@@ -142,14 +142,32 @@ fig.add_axes(ax)
 
 ######################################################
 # Draw article
+
+circle = ax.scatter(E_MIN+10, N_MIN+10, s=10, c='red', marker='o')
+
+
+def onpick(event):
+    ind = event.ind[0]
+    state_name = event.artist.get_label()
+    name = info_states[state_name]['names'][ind]
+    pos = info_states[state_name]['pos'][ind]
+    print(state_name, name, pos)
+    circle._offsets[0][0] = pos[0]
+    circle._offsets[0][1] = pos[1]
+    fig.canvas.draw()
+
+
 for state_name, info in info_states.items():
     # print(state_name, len(info['names']))
+    names = set(info['names'])
     color = info['color']
     colors = np.repeat(color, info['num'], axis=0)
 
     # Draw cities
     x, y = info['pos'][:, 0], info['pos'][:, 1]
-    ax.scatter(x, y, s=5, c=colors, label=state_name)
+    ax.scatter(x, y, s=5, c=colors, label=state_name, picker=True)
+    # for j, name in enumerate(names):
+    #     ax.annotate(name, (x[j], y[j]))
 
     # Draw path
     path = info['path']
@@ -161,6 +179,8 @@ for state_name, info in info_states.items():
 
 # Draw legend
 ax.legend(loc='best', bbox_to_anchor=(1, 1))
+
+fig.canvas.mpl_connect('pick_event', onpick)
 
 # Plot on screen
 plt.show()
