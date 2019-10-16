@@ -71,33 +71,43 @@ print(E_MIN, E_MAX, N_MIN, N_MAX)
 # Compute shortest path based on pos: positions of nodes
 def compute_path(pos):
     total = pos.shape[0]
-    dist = cdist(pos, pos)
-    dist += np.diag(np.array([np.inf for _ in range(total)]))
+    dist_matrix = cdist(pos, pos)
+
+    inds = np.triu_indices_from(dist_matrix, 1)
+    dist_list = [e for e in zip(dist_matrix[inds], inds[0], inds[1])]
+    # dist_list = [(dist_matrix[j, k], j, k)
+    #              for j in range(total) for k in range(j)]
+    dist_list.sort()
+
     passed = set()
     remain = set(range(total))
-    path = []
+
+    [passed.add(e) for e in dist_list[0][1:]]
+    [remain.remove(e) for e in dist_list[0][1:]]
+    a, b = dist_list[0][1], dist_list[0][2]
+    path = [[pos[a][0], pos[a][1], pos[b][0], pos[b][1]]]
+    # print(path, passed, remain)
 
     pbar = tqdm.tqdm(total=total)
-    # Compute shortest path
-    # Use fast iteration method, start from 0th city
-    passed.add(0)
-    remain.remove(0)
     pbar.update(1)
-    while remain:
-        _x, _y = tuple(passed), tuple(remain)
-        _dist = dist[_x, :][:, _y]
-        _a, _b = np.unravel_index(_dist.argmin(), _dist.shape)
-        a, b = _x[_a], _y[_b]
-
-        # formate of eath path [x_from, y_from, x_to, y_to]
-        path.append([pos[a][0], pos[a][1], pos[b][0], pos[b][1]])
-        # Record shortest edge
-        passed.add(b)
-        remain.remove(b)
+    for _ in range(4000):
         pbar.update(1)
-
+        if len(remain) == 0:
+            break
+        for x in dist_list:
+            if x[1] in passed and x[2] in remain:
+                a, b = x[1], x[2]
+                path.append([pos[a][0], pos[a][1], pos[b][0], pos[b][1]])
+                passed.add(x[2])
+                remain.remove(x[2])
+                break
+            if x[2] in passed and x[1] in remain:
+                a, b = x[2], x[1]
+                path.append([pos[a][0], pos[a][1], pos[b][0], pos[b][1]])
+                passed.add(x[1])
+                remain.remove(x[1])
+                break
     pbar.close()
-
     return path
 
 
@@ -110,10 +120,10 @@ for state_name in info_states.keys():
     info_states[state_name]['path'] = np.array(_path).transpose()
 
 # Compute shortest path across country
-# global_pos = np.concatenate([e['pos'] for e in info_states.values()], axis=0)
-# print('Global', global_pos.shape[0])
-# _path = compute_path(global_pos)
-# global_path = np.array(_path).transpose()
+global_pos = np.concatenate([e['pos'] for e in info_states.values()], axis=0)
+print('Global', global_pos.shape[0])
+_path = compute_path(global_pos)
+global_path = np.array(_path).transpose()
 
 
 ####################################################
@@ -175,7 +185,7 @@ for state_name, info in info_states.items():
     ax.plot(path[(0, 2), :], path[(1, 3), :], c=tuple(color[0]))
 
 # Draw global_path
-# ax.plot(global_path[(0, 2), :], global_path[(1, 3), :], c='gray', alpha=0.3)
+ax.plot(global_path[(0, 2), :], global_path[(1, 3), :], c='gray', alpha=0.3)
 
 # Draw legend
 ax.legend(loc='best', bbox_to_anchor=(1, 1))
