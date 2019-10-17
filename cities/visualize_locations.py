@@ -94,7 +94,7 @@ print(E_MIN, E_MAX, N_MIN, N_MAX)
 
 
 # Compute shortest path based on poses: positions of nodes
-def compute_path(poses):
+def compute_path(poses, uids=None):
     total = poses.shape[0]
     # Distance between cities
     dist_matrix = cdist(poses, poses)
@@ -105,6 +105,7 @@ def compute_path(poses):
     dist_list = [e for e in zip(dist_matrix[inds], inds[0], inds[1])]
     # dist_list = [(dist_matrix[j, k], j, k)
     #              for j in range(total) for k in range(j)]
+    # Sort dist_list in increasing order
     dist_list.sort()
 
     passed = set()
@@ -121,23 +122,28 @@ def compute_path(poses):
     # Update 2 steps since we already added two nodes into path
     pbar.update(2)
     while remain:
+        # Fetch shortest pair
         for x in dist_list:
+            fetch_this = False
+
             if x[1] in passed and x[2] in remain:
                 a, b = x[1], x[2]
-                path_pos.append((poses[a][0], poses[a][1],
-                                 poses[b][0], poses[b][1]))
-                path_uid.add(tuple(sorted((a, b))))
-                passed.add(x[2])
-                remain.remove(x[2])
-                break
+                fetch_this = True
+
             if x[2] in passed and x[1] in remain:
                 a, b = x[2], x[1]
+                fetch_this = True
+
+            if fetch_this:
                 path_pos.append((poses[a][0], poses[a][1],
                                  poses[b][0], poses[b][1]))
+                passed.add(b)
+                remain.remove(b)
+                if uids:
+                    a, b = uids[a], uids[b]
                 path_uid.add(tuple(sorted((a, b))))
-                passed.add(x[1])
-                remain.remove(x[1])
                 break
+
         pbar.update(1)
     pbar.close()
     # Transform path into np array 4 x [num]
@@ -151,7 +157,7 @@ for state_name in info_states.keys():
     print(state_name, info_states[state_name]['num'])
     # Compute path within state
     info_states[state_name]['path'], path_uid, _ = compute_path(
-        info_states[state_name]['poses'])
+        info_states[state_name]['poses'], info_states[state_name]['uids'])
     [all_path_uid.add(e) for e in path_uid]
     print(len(all_path_uid))
 
@@ -326,6 +332,7 @@ def onpick(event):
         trace_from_to[1] = uid
         print('Trace path to', state_name, name, pos)
         enlarge_clicked_scatter()
+        fig.canvas.draw()
         for e in trace_shortest_path(trace_from_to[0], trace_from_to[1]):
             enlarge_uid_scatter(e)
         fig.canvas.draw()
