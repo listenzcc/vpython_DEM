@@ -96,6 +96,7 @@ print(E_MIN, E_MAX, N_MIN, N_MAX)
 # Compute shortest path based on poses: positions of nodes
 def compute_path(poses):
     total = poses.shape[0]
+    # Distance between cities
     dist_matrix = cdist(poses, poses)
 
     inds = np.triu_indices_from(dist_matrix, 1)
@@ -138,21 +139,21 @@ def compute_path(poses):
         pbar.update(1)
     pbar.close()
     # Transform path into np array 4 x [num]
-    return np.array(path_pos).transpose(), path_uid
+    return np.array(path_pos).transpose(), path_uid, dist_matrix
 
 
 # Compute shortest path in each state
 for state_name in info_states.keys():
     print(state_name, info_states[state_name]['num'])
     # Compute path within state
-    info_states[state_name]['path'], _ = compute_path(
+    info_states[state_name]['path'], _, _ = compute_path(
         info_states[state_name]['poses'])
 
 # Compute shortest path across country
 global_poses = np.concatenate([e['pos'].reshape(1, 2)
                                for e in info_uid], axis=0)
 print('Global', global_poses.shape[0])
-global_path, global_path_uid = compute_path(global_poses)
+global_path, global_path_uid, global_dist_matrix = compute_path(global_poses)
 # Fill global_path_uid into a dict
 # Formate is {[from]: [to]},
 # the unique of [from] is guaranteed by the algorithm used in compute_path
@@ -190,8 +191,44 @@ fig.add_axes(ax)
 trace_from_to = [None, None]
 
 
-# Trace the path of trace_from_to
-def trace_path():
+def trace_shortest_path(start, stop):
+    total = global_dist_matrix.shape[0]
+    pbar = tqdm.tqdm(total=total)
+    
+    passed = set()
+    path = dict()
+    passed.add(start)
+
+    for _ in range(total):
+        pbar.update(1)
+        edges = set()
+        for a, b in [(0, 1), (1, 0)]:
+            [edges.add((global_dist_matrix[e[a]][e[b]], e[a], e[b]))
+                 for e in global_path_uid if all([e[a] in passed,
+                                                   e[b] not in passed])]
+        _next = sorted(edges)[0][1:]
+        #  print(_next)
+        path[_next[1]] = _next[0]
+        if _next[1] == stop:
+            print('Stop reached.')
+            break
+        passed.add(_next[1])
+    pbar.close()
+
+    found_path = [stop]
+    ptr = stop
+    while True:
+        found_path.append(path[ptr])
+        ptr = path[ptr]
+        if ptr == start:
+            break
+
+    found_path.reverse()
+    return found_path
+
+
+# Trace the path from start to stop
+def trace_path(start_uid, stop_uid):
 
     # Trace back to start
     def trace_back(this):
@@ -202,9 +239,8 @@ def trace_path():
         path.reverse()
         return path
 
-    # Trace From and To locations to start
-    a, b = trace_from_to
-    pa, pb = trace_back(a), trace_back(b)
+    # Trace start and stop back to very start
+    pa, pb = trace_back(start_uid), trace_back(stop_uid)
 
     # Cut two pathes until the match
     while pa[0] == pb[0]:
@@ -274,7 +310,7 @@ def onpick(event):
         trace_from_to[1] = uid
         print('Trace path to', state_name, name, pos)
         enlarge_clicked_scatter()
-        for e in trace_path():
+        for e in trace_shortest_path(trace_from_to[0], trace_from_to[1]):
             enlarge_uid_scatter(e)
         fig.canvas.draw()
         return 0
