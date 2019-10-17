@@ -29,7 +29,7 @@ info_states = dict()
 # uid counts from 0
 uid = 0
 for state_name, cities in locations.items():
-    print(state_name)
+    # print(state_name)
 
     # Get city name and posesition
     name_list = []
@@ -100,6 +100,8 @@ def compute_path(poses):
     dist_matrix = cdist(poses, poses)
 
     inds = np.triu_indices_from(dist_matrix, 1)
+    # Knowing BUG: here using local inds, however they are passed into path_uid
+    # todo: covert it into uids.
     dist_list = [e for e in zip(dist_matrix[inds], inds[0], inds[1])]
     # dist_list = [(dist_matrix[j, k], j, k)
     #              for j in range(total) for k in range(j)]
@@ -114,7 +116,7 @@ def compute_path(poses):
     a, b = dist_list[0][1], dist_list[0][2]
     # Path represented as positions and uid
     path_pos = [(poses[a][0], poses[a][1], poses[b][0], poses[b][1])]
-    path_uid = [(a, b)]
+    path_uid = set([tuple(sorted((a, b)))])
     # print(path, passed, remain)
     # Update 2 steps since we already added two nodes into path
     pbar.update(2)
@@ -124,7 +126,7 @@ def compute_path(poses):
                 a, b = x[1], x[2]
                 path_pos.append((poses[a][0], poses[a][1],
                                  poses[b][0], poses[b][1]))
-                path_uid.append((a, b))
+                path_uid.add(tuple(sorted((a, b))))
                 passed.add(x[2])
                 remain.remove(x[2])
                 break
@@ -132,7 +134,7 @@ def compute_path(poses):
                 a, b = x[2], x[1]
                 path_pos.append((poses[a][0], poses[a][1],
                                  poses[b][0], poses[b][1]))
-                path_uid.append((a, b))
+                path_uid.add(tuple(sorted((a, b))))
                 passed.add(x[1])
                 remain.remove(x[1])
                 break
@@ -142,18 +144,24 @@ def compute_path(poses):
     return np.array(path_pos).transpose(), path_uid, dist_matrix
 
 
+all_path_uid = set()
+
 # Compute shortest path in each state
 for state_name in info_states.keys():
     print(state_name, info_states[state_name]['num'])
     # Compute path within state
-    info_states[state_name]['path'], _, _ = compute_path(
+    info_states[state_name]['path'], path_uid, _ = compute_path(
         info_states[state_name]['poses'])
+    [all_path_uid.add(e) for e in path_uid]
+    print(len(all_path_uid))
 
 # Compute shortest path across country
 global_poses = np.concatenate([e['pos'].reshape(1, 2)
                                for e in info_uid], axis=0)
 print('Global', global_poses.shape[0])
 global_path, global_path_uid, global_dist_matrix = compute_path(global_poses)
+[all_path_uid.add(e) for e in global_path_uid]
+print(len(all_path_uid))
 # Fill global_path_uid into a dict
 # Formate is {[from]: [to]},
 # the unique of [from] is guaranteed by the algorithm used in compute_path
@@ -194,25 +202,33 @@ trace_from_to = [None, None]
 def trace_shortest_path(start, stop):
     total = global_dist_matrix.shape[0]
     pbar = tqdm.tqdm(total=total)
-    
-    passed = set()
+
+    passed = dict()
     path = dict()
-    passed.add(start)
+    passed[start] = 0
 
     for _ in range(total):
         pbar.update(1)
         edges = set()
         for a, b in [(0, 1), (1, 0)]:
-            [edges.add((global_dist_matrix[e[a]][e[b]], e[a], e[b]))
-                 for e in global_path_uid if all([e[a] in passed,
-                                                   e[b] not in passed])]
+            # from e[a] to e[b]
+            [edges.add((
+                global_dist_matrix[e[a]][e[b]] + passed[e[a]], e[a], e[b]))
+             for e in all_path_uid if all([e[a] in passed,
+                                           e[b] not in passed])]
+        # _next is the best choice
+        # format is ([dist], [from], [to])
         _next = sorted(edges)[0][1:]
         #  print(_next)
+
         path[_next[1]] = _next[0]
         if _next[1] == stop:
+            pbar.close()
             print('Stop reached.')
             break
-        passed.add(_next[1])
+        passed[_next[1]] = global_dist_matrix[_next[0]
+                                              ][_next[1]] + passed[_next[0]]
+
     pbar.close()
 
     found_path = [stop]
