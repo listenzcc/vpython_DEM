@@ -4,6 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pprint import pprint
+from collections import defaultdict
 
 from load_locations import info_states, info_uid, info_global
 from figure_setup import fix_sz_fig
@@ -13,6 +14,14 @@ from local_tools import compute_path, trace_shortest_path
 ########################################################
 # Compute pathes connect cities, and parse the pathes for further use
 all_path_uid = set()
+uid_connections = defaultdict(list)
+
+
+def _update(uid_pair):
+    uid_a, uid_b = uid_pair
+    uid_connections[uid_a].append(uid_b)
+    uid_connections[uid_b].append(uid_a)
+
 
 # Compute shortest path within each state
 for state_name in info_states.keys():
@@ -22,6 +31,7 @@ for state_name in info_states.keys():
         info_states[state_name]['poses'], info_states[state_name]['uids'])
     [all_path_uid.add(e) for e in path_uid]
     print(len(all_path_uid))
+    [_update(e) for e in path_uid]
 
 # Compute shortest path across country
 global_poses = np.concatenate([e['pos'].reshape(1, 2)
@@ -30,6 +40,7 @@ print('Global', global_poses.shape[0])
 global_path, global_path_uid, global_dist_matrix = compute_path(global_poses)
 [all_path_uid.add(e) for e in global_path_uid]
 print(len(all_path_uid))
+[_update(e) for e in global_path_uid]
 
 
 ####################################################
@@ -129,7 +140,8 @@ def onpick(event):
         fig.canvas.draw()
         print('Tracing starts.')
         for e in trace_shortest_path(tracing['start'], tracing['stop'],
-                                     global_dist_matrix, all_path_uid):
+                                     global_dist_matrix, all_path_uid,
+                                     uid_connections):
             enlarge_uid_scatter(e)
         fig.canvas.draw()
         return 0

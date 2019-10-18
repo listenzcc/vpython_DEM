@@ -64,7 +64,7 @@ def compute_path(poses, uids=None):
 
 
 # Trace shortest path from start to stop
-def trace_shortest_path(start, stop, dist_matrix, all_path_uid):
+def trace_shortest_path(start, stop, dist_matrix, all_path_uid, uid_connections):
     total = dist_matrix.shape[0]
     pbar = tqdm.tqdm(total=total)
 
