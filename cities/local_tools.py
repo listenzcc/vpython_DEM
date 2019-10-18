@@ -1,14 +1,36 @@
 # -*- coding: utf-8 -*-
 # Filename: local_tools.py
 
+import time
 import tqdm
 import numpy as np
+from functools import wraps
 from scipy.spatial.distance import cdist
+
+
+def my_timer(func):
+    @wraps(func)
+    def func_timer(*args, **kwargs):
+        timestamp_start = time.time()
+        print('[%s]' % str(timestamp_start),
+              '%s begins.' % func.__name__)
+
+        result = func(*args, **kwargs)
+
+        timestamp_stop = time.time()
+        passed = timestamp_stop - timestamp_start
+        print('[%s]' % str(timestamp_start),
+              '%s stops, %f passed.' % (func.__name__, passed),
+              '[%s]' % str(timestamp_stop))
+
+        return result
+    return func_timer
 
 
 # Compute shortest path based on poses: positions of nodes
 # Here we use greedy strategy since there are
 # full connections between each two nodes.
+@my_timer
 def compute_path(poses, uids=None):
     total = poses.shape[0]
     # Distance between cities
@@ -64,7 +86,9 @@ def compute_path(poses, uids=None):
 
 
 # Trace shortest path from start to stop
-def trace_shortest_path(start, stop, dist_matrix, all_path_uid, uid_connections):
+# about .5 seconds for a very far trace
+@my_timer
+def trace_shortest_path(start, stop, dist_matrix, uid_connections):
     total = dist_matrix.shape[0]
     pbar = tqdm.tqdm(total=total)
 
@@ -75,20 +99,24 @@ def trace_shortest_path(start, stop, dist_matrix, all_path_uid, uid_connections)
     for _ in range(total):
         pbar.update(1)
         edges = set()
-        for a, b in [(0, 1), (1, 0)]:
-            # from e[a] to e[b]
-            [edges.add((dist_matrix[e[a]][e[b]] + passed[e[a]], e[a], e[b]))
-             for e in all_path_uid if all([e[a] in passed,
-                                           e[b] not in passed])]
+        # For each element in passed set
+        for p in passed:
+            # Add its direct connections into edges set
+            for e in uid_connections[p]:
+                # What is already in passed can not be edge
+                if e in passed:
+                    continue
+                # format is ([dist], [from], [to])
+                edges.add((dist_matrix[p][e] + passed[p], p, e))
+
         # _next is the best choice
-        # format is ([dist], [from], [to])
         _next = sorted(edges)[0][1:]
         #  print(_next)
 
         path[_next[1]] = _next[0]
         if _next[1] == stop:
             pbar.close()
-            print('Stop reached.')
+            print('Destination reached.')
             break
         passed[_next[1]] = dist_matrix[_next[0]][_next[1]] + passed[_next[0]]
 
