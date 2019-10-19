@@ -19,9 +19,9 @@ def my_timer(func):
 
         timestamp_stop = time.time()
         passed = timestamp_stop - timestamp_start
-        print('[%s]' % str(timestamp_start),
+        print('[%s]' % str(timestamp_stop),
               '%s stops, %f passed.' % (func.__name__, passed),
-              '[%s]' % str(timestamp_stop))
+              '[%s]' % str(timestamp_start))
 
         return result
     return func_timer
