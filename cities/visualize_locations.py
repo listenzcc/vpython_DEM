@@ -33,7 +33,7 @@ for state_name in info_states.keys():
 # Compute shortest path across country
 global_poses = np.concatenate([e['pos'].reshape(1, 2)
                                for e in info_uid], axis=0)
-print('Global', global_poses.shape[0])
+print('Global', global_poses.shape)
 global_path, global_path_uid, global_dist_matrix = compute_path(global_poses)
 [_update(e) for e in global_path_uid]
 
