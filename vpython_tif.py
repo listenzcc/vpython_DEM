@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import cv2
 from scipy import signal
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ D = 5
 ################################################
 # Read tif
 fname = 'Shanghai-90m-DEM.tif'
-Z = plt.imread(fname).astype('int')[:-200, 200:-100, 0]
+Z = cv2.imread(fname).astype('int')[:-200, 200:-100, 0]
 # fname = 'Rome-90m-DEM.tif'
 # Z = plt.imread(fname).astype('int')[:, :, 0]
 Z = np.transpose(Z)
@@ -55,7 +56,8 @@ for j in range(D, shape[0]-D, D):
         points.append(vc - center)
         points_n.append(dn.cross(dw)+dw.cross(ds)+ds.cross(de)+de.cross(dn))
 
-        _c = (Z[j][k] - min_value) / (max_value - min_value) * 0.9 + 0.1
+        _c = (Z[j][k] - min_value) / \
+            (max_value - min_value + 0.001) * 0.9 + 0.1
         _c = min(_c, 1)
         colors.append(vector(_c, _c, _c))
 

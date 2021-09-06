@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 
+# %%
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
+# %%
+fname = 'Shanghai-90m-DEM.tif'
+# fname = 'Rome-30m-DEM.tif'
+Z = cv2.imread(fname)
+print('Raw shape is', Z.shape)
+Z = Z[:, :, 0]
+print(Z.shape)
 
+
+# %%
 # Computing histogram and threshold idx for covering population
 # Output:
 # 0 log histogram counting
@@ -43,16 +54,22 @@ def plot_geometric(Z, hist, bins, idx, fig, axes_map, axes_hist):
     Z_cut[Z > cut] = cut
     fig.colorbar(axes_map.imshow(Z_cut), ax=axes_map)
 
+# %%
 
-# Prepare painting
-fig, axes = plt.subplots(2, 2, figsize=(10, 5))
 
 # Read tif and change it into 2-D matrix
 fname = 'Shanghai-90m-DEM.tif'
 # fname = 'Rome-30m-DEM.tif'
-Z = plt.imread(fname)
+Z = cv2.imread(fname)
 print('Raw shape is', Z.shape)
 Z = Z[:, :, 0]
+print(Z.shape)
+
+# %%
+
+# Prepare painting
+fig, axes = plt.subplots(2, 2, figsize=(10, 5))
+
 
 # Compute and display on raw Z
 print('Working on Z, shape', Z.shape)
@@ -74,3 +91,5 @@ plot_geometric(box_Z, hist, bins, idx, fig, axes[1][0], axes[1][1])
 # Paint axes
 fig.tight_layout()
 plt.show()
+
+# %%
